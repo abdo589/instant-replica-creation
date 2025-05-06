@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 const Header: React.FC = () => {
   return (
-    <header className="bg-primary text-white py-3 px-4">
+    <header className="bg-primary text-white py-3 px-4" dir="rtl">
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-lg font-bold">
           أمانة الشباب - قسم منتزة أول - حزب مستقبل وطن
@@ -17,7 +17,7 @@ const Header: React.FC = () => {
             التسجيل
           </Link>
           <img 
-            src="/lovable-uploads/5bc27ba7-d55c-4086-b718-be439b28fb8f.png" 
+            src="/lovable-uploads/a1b32b2f-f8b5-4dba-a82e-3ee6be8dd1fa.png" 
             alt="شعار الحزب" 
             className="h-10 w-auto"
           />

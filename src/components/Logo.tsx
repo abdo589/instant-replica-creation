@@ -5,9 +5,9 @@ const Logo: React.FC = () => {
   return (
     <div className="flex items-center justify-center py-4">
       <img 
-        src="/lovable-uploads/047d95f3-c815-4ff2-93bc-85fbe64fe954.png" 
+        src="/lovable-uploads/a1b32b2f-f8b5-4dba-a82e-3ee6be8dd1fa.png" 
         alt="مستقبل وطن" 
-        className="h-24 w-auto"
+        className="h-36 w-auto"
       />
     </div>
   );
