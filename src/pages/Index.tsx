@@ -2,7 +2,7 @@
 import React from 'react';
 import Header from '@/components/Header';
 import Logo from '@/components/Logo';
-import RegistrationForm from '@/components/RegistrationForm';
+import RegistrationForm from '@/components/registration/RegistrationForm';
 import Footer from '@/components/Footer';
 
 const Index: React.FC = () => {
