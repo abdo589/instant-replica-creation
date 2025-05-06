@@ -1,18 +1,133 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, X, FileSpreadsheet } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface Member {
+  id: string;
+  name: string;
+  national_id: string;
+  phone_number: string | null;
+  gender: string;
+  status: string;
+  address: string | null;
+  notes: string | null;
+  created_at: string;
+}
 
 const ViewData: React.FC = () => {
-  // هذا مجرد نموذج للبيانات، في التطبيق الحقيقي ستأتي من قاعدة البيانات
-  const dummyData = [
-    { id: 1, name: 'محمد أحمد', nationalId: '1234567891234', phone: '01012345678', gender: 'ذكر', status: 'عضو' },
-    { id: 2, name: 'سارة محمود', nationalId: '9876543219876', phone: '01198765432', gender: 'أنثى', status: 'متطوع' },
-    { id: 3, name: 'أحمد إبراهيم', nationalId: '1472583691472', phone: '01223456789', gender: 'ذكر', status: 'قيادي' },
-  ];
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = members.filter(
+        member => 
+          member.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          member.national_id.includes(searchTerm)
+      );
+      setFilteredMembers(filtered);
+    } else {
+      setFilteredMembers(members);
+    }
+  }, [searchTerm, members]);
+
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setMembers(data);
+        setFilteredMembers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      toast("خطأ في جلب البيانات", {
+        description: "حدث خطأ أثناء محاولة جلب بيانات الأعضاء.",
+        icon: <X className="h-4 w-4 text-destructive" />,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportToExcel = () => {
+    // Convert members data to CSV format
+    const headers = ['الاسم', 'الرقم القومي', 'الهاتف', 'النوع', 'الصفة', 'العنوان', 'ملاحظات'];
+    
+    let csvContent = headers.join(',') + '\n';
+    
+    filteredMembers.forEach(member => {
+      const rowData = [
+        `"${member.name || ''}"`,
+        `"${member.national_id || ''}"`,
+        `"${member.phone_number || ''}"`,
+        `"${member.gender === 'male' ? 'ذكر' : 'أنثى'}"`,
+        `"${member.status || ''}"`,
+        `"${member.address || ''}"`,
+        `"${member.notes || ''}"`
+      ];
+      csvContent += rowData.join(',') + '\n';
+    });
+    
+    // Create a Blob from the CSV data
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // Create a download link and click it
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'members_data.csv');
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast("تم تصدير البيانات", {
+      description: "تم تصدير البيانات إلى ملف Excel بنجاح",
+      icon: <FileSpreadsheet className="h-4 w-4" />,
+    });
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // The filtering is already handled by the useEffect
+  };
+
+  // Function to format gender and status for display
+  const formatGender = (gender: string) => gender === 'male' ? 'ذكر' : 'أنثى';
+  const formatStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'member': 'عضو',
+      'leader': 'قيادي',
+      'volunteer': 'متطوع',
+      'supporter': 'مؤيد',
+      'youth': 'شباب'
+    };
+    return statusMap[status] || status;
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -24,16 +139,31 @@ const ViewData: React.FC = () => {
           
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
-              <div className="flex w-full max-w-sm items-center space-x-2 space-x-reverse">
-                <Input type="search" placeholder="ابحث باسم العضو أو الرقم القومي" className="text-right" />
+              <form onSubmit={handleSearch} className="flex w-full max-w-sm items-center space-x-2 space-x-reverse">
+                <Input 
+                  type="search" 
+                  placeholder="ابحث باسم العضو أو الرقم القومي" 
+                  className="text-right"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
                 <Button type="submit">بحث</Button>
-              </div>
+              </form>
               <div>
-                <Button className="bg-green-600 hover:bg-green-700">تصدير إلى Excel</Button>
+                <Button 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleExportToExcel}
+                >
+                  تصدير إلى Excel
+                </Button>
               </div>
             </div>
             
-            {dummyData.length > 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center py-10">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              </div>
+            ) : filteredMembers.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table dir="rtl">
                   <TableHeader>
@@ -48,14 +178,14 @@ const ViewData: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dummyData.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium">{row.id}</TableCell>
-                        <TableCell>{row.name}</TableCell>
-                        <TableCell>{row.nationalId}</TableCell>
-                        <TableCell>{row.phone}</TableCell>
-                        <TableCell>{row.gender}</TableCell>
-                        <TableCell>{row.status}</TableCell>
+                    {filteredMembers.map((member, index) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{index + 1}</TableCell>
+                        <TableCell>{member.name}</TableCell>
+                        <TableCell>{member.national_id}</TableCell>
+                        <TableCell>{member.phone_number || '-'}</TableCell>
+                        <TableCell>{formatGender(member.gender)}</TableCell>
+                        <TableCell>{formatStatus(member.status)}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" className="ml-2">تعديل</Button>
                           <Button variant="outline" size="sm" className="text-red-500">حذف</Button>

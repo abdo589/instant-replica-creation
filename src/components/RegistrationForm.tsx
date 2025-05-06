@@ -9,37 +9,85 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { Check, AlertCircle } from "lucide-react";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { supabase } from "@/integrations/supabase/client";
+
+// Validation schema
+const formSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب"),
+  nationalId: z.string()
+    .min(14, "الرقم القومي يجب أن يكون 14 رقم")
+    .max(14, "الرقم القومي يجب أن يكون 14 رقم")
+    .regex(/^\d+$/, "الرقم القومي يجب أن يحتوي على أرقام فقط"),
+  phoneNumber: z.string().optional(),
+  gender: z.enum(["male", "female"], { required_error: "النوع مطلوب" }),
+  status: z.string().min(1, "الصفة مطلوبة"),
+  address: z.string().optional(),
+  notes: z.string().optional()
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 const RegistrationForm: React.FC = () => {
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm({
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
       nationalId: '',
       phoneNumber: '',
-      gender: '',
+      gender: 'male',
       status: '',
       address: '',
       notes: ''
     },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
-    console.log('Form submitted:', data);
+    
+    try {
+      // Save the data to Supabase
+      const { error } = await supabase.from('members').insert({
+        name: data.name,
+        national_id: data.nationalId,
+        phone_number: data.phoneNumber,
+        gender: data.gender,
+        status: data.status,
+        address: data.address,
+        notes: data.notes
+      });
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+      if (error) {
+        throw error;
+      }
+
       toast("تم تسجيل البيانات بنجاح", {
         description: "تم حفظ بيانات العضو في قاعدة البيانات",
         icon: <Check className="h-4 w-4" />,
       });
       form.reset();
-    }, 1500);
+    } catch (error: any) {
+      console.error("Error saving data:", error);
+      
+      let errorMessage = "حدث خطأ أثناء تسجيل البيانات";
+      
+      // Handle duplicate national ID error
+      if (error.code === "23505") {
+        errorMessage = "الرقم القومي مسجل بالفعل";
+      }
+      
+      toast("خطأ في التسجيل", {
+        description: errorMessage,
+        icon: <AlertCircle className="h-4 w-4 text-destructive" />,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
